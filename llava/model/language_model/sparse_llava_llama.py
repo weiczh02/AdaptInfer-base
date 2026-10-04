@@ -61,7 +61,7 @@ class LlavaLlamaDynamicForCausalLM(LlamaDynamicvitForCausalLM, LlavaMetaForCausa
         image_shape = 576,
         token_length_list = [],
         pre_prompt_length_list = [],
-        retained_tokens = 192,
+        retained_tokens = 64,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
 
         if inputs_embeds is None:
@@ -108,7 +108,7 @@ class LlavaLlamaDynamicForCausalLM(LlamaDynamicvitForCausalLM, LlavaMetaForCausa
         inputs: Optional[torch.Tensor] = None,
         images: Optional[torch.Tensor] = None,
         image_sizes: Optional[torch.Tensor] = None,
-        retained_tokens = 192,
+        retained_tokens = 64,
         image_shape=576,
         token_length_list = [],
         pre_prompt_length_list = [],

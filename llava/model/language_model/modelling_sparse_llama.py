@@ -125,7 +125,7 @@ class LlamaDynamicvitModel(LlamaModel):
         image_shape=576,
         token_length_list=[],
         pre_prompt_length_list = [],
-        retained_tokens = 192,
+        retained_tokens = 64,
     ) -> Union[Tuple, BaseModelOutputWithPast]:
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
@@ -1025,7 +1025,7 @@ class LlamaDynamicvitForCausalLM(LlamaForCausalLM):
         image_shape=576,
         token_length_list=[],
         pre_prompt_length_list = [],
-        retained_tokens = 192,
+        retained_tokens = 64,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
@@ -1105,7 +1105,7 @@ class LlamaDynamicvitForCausalLM(LlamaForCausalLM):
         image_shape=576,
         token_length_list=[],
         pre_prompt_length_list = [],
-        retained_tokens = 192,
+        retained_tokens = 64,
         **kwargs,
     ) -> Union[GenerateOutput, torch.LongTensor]:
         if synced_gpus is None:
@@ -1569,7 +1569,7 @@ class LlamaDynamicvitForCausalLM(LlamaForCausalLM):
         image_shape = 576,
         token_length_list = [],
         pre_prompt_length_list = [],
-        retained_tokens = 192,
+        retained_tokens = 64,
         **model_kwargs,
     ) -> Union[GenerateNonBeamOutput, torch.LongTensor]:
         r"""

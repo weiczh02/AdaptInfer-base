@@ -9,8 +9,8 @@ from collections import Counter
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-dump_dir = "playground/13b_attn_dumps_t2v_mme"
-save_dir = "playground/vis_13b"
+dump_dir = "playground/7b_attn_dumps_t2v_mme"
+save_dir = "playground/vis_7b"
 
 results_f = {}
 results_l = {}
