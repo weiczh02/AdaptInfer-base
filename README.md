@@ -50,7 +50,17 @@ This project is released under the [Apache 2.0 license](LICENSE).
 
 ## Citation
 
-To be done.
+```bibtex
+@misc{zhang2026adaptinferadaptivetokenpruning,
+      title={AdaptInfer: Adaptive Token Pruning for Vision-Language Model Inference with Dynamical Text Guidance},
+      author={Weichen Zhang and Zhui Zhu and Ningbo Li and Shilong Tao and Kebin Liu and Yunhao Liu},
+      year={2026},
+      eprint={2508.06084},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2508.06084},
+}
+```
 
 ## Acknowledgment
 
