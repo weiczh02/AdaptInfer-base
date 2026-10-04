@@ -1,0 +1,8 @@
+name: AdaptInfer-Qwen2VL
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip=25.1
+  - pip:
+      - -r qwen2_vl/requirements.txt

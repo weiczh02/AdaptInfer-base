@@ -4,10 +4,10 @@
 
 <strong>Weichen Zhang</strong><sup>1,2,‡</sup>, <strong>Zhui Zhu</strong><sup>2,‡</sup>, <strong>Ningbo Li</strong><sup>2,3</sup>, <strong>Shilong Tao</strong><sup>4</sup>, <strong>Hongzi Zhu</strong><sup>5</sup>, <strong>Jingao Xu</strong><sup>1</sup>, <strong>Kebin Liu</strong><sup>2,✉</sup>, <strong>Yunhao Liu</strong><sup>2</sup>
 
-<sup>1</sup>The University of Hong Kong · <sup>2</sup>Tsinghua University<br>
+<sup>1</sup>The University of Hong Kong · <sup>2</sup>Tsinghua University ·
 <sup>3</sup>The Hong Kong University of Science and Technology · <sup>4</sup>Peking University · <sup>5</sup>Shanghai Jiao Tong University
 
-‡ Co-first authors (equal contribution). ✉ Corresponding author.
+‡ Equal contribution. ✉ Corresponding author.
 
 </div>
 
@@ -15,9 +15,9 @@
 
 ![The architecture of AdaptInfer.](assests/adaptinfer_architecture.png)
 
-**The architecture of AdaptInfer.**
-
 ## Installation
+
+### LLaVA
 
 The environment targets Linux x86_64 with an NVIDIA GPU, CUDA 12.1, and Python 3.10.
 Run the following commands from the repository root:
@@ -31,9 +31,18 @@ pip install flash-attn==2.3.3 --no-build-isolation
 The Conda environment installs the dependencies in [requirements.txt](requirements.txt).
 FlashAttention is installed separately after PyTorch. A CUDA toolkit with `nvcc` is needed when building FlashAttention from source.
 
+### Qwen2-VL
+
+We provide Qwen2-VL inference in a separate environment:
+
+```bash
+conda env create -f qwen2_vl/environment.yml
+conda activate AdaptInfer-Qwen2VL
+```
+
 ## Usage
 
-To be done.
+See [Qwen2-VL inference and evaluation](qwen2_vl/README.md) for usage and benchmark examples.
 
 ## License
 
