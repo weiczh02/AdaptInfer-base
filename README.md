@@ -19,30 +19,22 @@
 
 ### LLaVA
 
-The environment targets Linux x86_64 with an NVIDIA GPU, CUDA 12.1, and Python 3.10.
-Run the following commands from the repository root:
-
 ```bash
 conda env create -f environment.yml
 conda activate AdaptInfer
 pip install flash-attn==2.3.3 --no-build-isolation
 ```
 
-The Conda environment installs the dependencies in [requirements.txt](requirements.txt).
-FlashAttention is installed separately after PyTorch. A CUDA toolkit with `nvcc` is needed when building FlashAttention from source.
-
 ### Qwen2-VL
 
-We provide Qwen2-VL inference in a separate environment:
-
 ```bash
-conda env create -f qwen2_vl/environment.yml
-conda activate AdaptInfer-Qwen2VL
+conda activate qwen
+pip install -r qwen2_vl/requirements.txt
 ```
 
 ## Usage
 
-See [Qwen2-VL inference and evaluation](qwen2_vl/README.md) for usage and benchmark examples.
+See [Qwen2-VL setup and evaluation](qwen2_vl/README.md). API keys must come from `OPENAI_API_KEY`; revoke any key previously hard-coded in source.
 
 ## License
 
