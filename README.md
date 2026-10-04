@@ -12,7 +12,7 @@
 </div>
 
 ## News
-Our paper "AdaptInfer: Adaptive Token Pruning for Vision-Language Model Inference via Dynamical Text Guidance" has been accepted to Findings of EMNLP 2026.
+[2026.08] Our paper "*AdaptInfer: Adaptive Token Pruning for Vision-Language Model Inference via Dynamical Text Guidance*" has been accepted to Findings of EMNLP 2026. 
 
 ## Overview
 
@@ -50,7 +50,7 @@ This project is released under the [Apache 2.0 license](LICENSE).
 ## Citation
 
 ```bibtex
-@misc{zhang2026adaptinferadaptivetokenpruning,
+@misc{zhang2026adaptinfer,
       title={AdaptInfer: Adaptive Token Pruning for Vision-Language Model Inference with Dynamical Text Guidance},
       author={Weichen Zhang and Zhui Zhu and Ningbo Li and Shilong Tao and Kebin Liu and Yunhao Liu},
       year={2026},
