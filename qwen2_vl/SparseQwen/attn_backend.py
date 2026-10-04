@@ -1,12 +1,4 @@
-"""
-注意力后端选择 + 剪枝层打分用的注意力计算。
-
-- 模型主干（视觉塔 + LLM 所有层）的注意力后端由 attn_backend 决定：
-  "sdpa"（默认）/ "flash_attention_2" / "eager"。
-- 剪枝层的打分注意力始终按 transformers eager_attention_forward 的公式单独计算，
-  所以 attn_backend="eager" 时与 baseline_eager/ 的推理结果逐位一致；
-  sdpa / FA2 只会因主干注意力的数值差异带来微小偏差。
-"""
+"""Attention backend selection and prefill attention weights for token pruning."""
 
 import torch
 import torch.nn as nn
@@ -28,10 +20,11 @@ def resolve_attn_backend(attn_backend: str) -> str:
     if attn_backend not in ATTN_BACKENDS:
         raise ValueError(f"attn_backend must be one of {ATTN_BACKENDS}, got {attn_backend!r}")
     if attn_backend == "flash_attention_2":
-        # transformers 只检查包元数据；flash_attn 与 torch ABI 不匹配时要真正 import 才会暴露
+
         try:
-            import flash_attn_2_cuda  # noqa: F401
-            from flash_attn import flash_attn_func  # noqa: F401
+            # Import the CUDA extension to check that FlashAttention can load.
+            import flash_attn_2_cuda
+            from flash_attn import flash_attn_func
         except Exception as e:
             logger.warning(f"flash_attention_2 不可用（{type(e).__name__}: {e}），回退到 sdpa")
             return "sdpa"
@@ -39,10 +32,7 @@ def resolve_attn_backend(attn_backend: str) -> str:
 
 
 def eager_attn_weights(decoder_layer, hidden_states, position_embeddings, attention_mask):
-    """
-    复现 decoder_layer 内部 eager 注意力的权重 [B, H, L, L]（不经过 KV cache，仅用于 prefill 打分）。
-    attention_mask: eager 后端下的 4D 加性 mask；其它后端（None / bool / 2D）时按纯因果 mask 构造。
-    """
+    """Compute uncached prefill attention weights with shape [batch, heads, sequence, sequence]."""
     attn = decoder_layer.self_attn
     x = decoder_layer.input_layernorm(hidden_states)
     bsz, q_len, _ = x.shape
@@ -67,7 +57,7 @@ def eager_attn_weights(decoder_layer, hidden_states, position_embeddings, attent
 
 
 def prune_attention_mask(mask, keep_idx):
-    """按保留下标裁剪 mask；兼容 eager/sdpa 的 4D mask、FA2 的 2D padding mask 和 None。"""
+    """Select retained token positions from a 2D or 4D attention mask."""
     if mask is None:
         return None
     if mask.dim() == 4:

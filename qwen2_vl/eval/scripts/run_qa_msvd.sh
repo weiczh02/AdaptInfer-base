@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
+# Qwen2-VL-2B inference and evaluation on MSVD-QA.
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$REPO_ROOT" || exit 1
 DATA_ROOT="${DATA_ROOT:-playground/data/eval}"
 
 
-ATTN_BACKEND=${ATTN_BACKEND:-sdpa}  # sdpa / fa / eager（eager 与论文结果一致）
+ATTN_BACKEND=${ATTN_BACKEND:-sdpa}
 
 CKPT_NAME="Qwen2-VL-2B-Instruct"
 model_path="Qwen/${CKPT_NAME}"
@@ -39,10 +40,8 @@ wait
 
 output_file=${output_dir}/merge.jsonl
 
-# Clear out the output file if it exists.
 > "$output_file"
 
-# Loop through the indices and concatenate each file.
 for IDX in $(seq 0 $((CHUNKS-1))); do
     cat ${output_dir}/${CHUNKS}_${IDX}.json >> "$output_file"
 done

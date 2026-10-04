@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Qwen2-VL-2B inference and evaluation on MMBench.
+# Usage: bash qwen2_vl/eval/scripts/mmbench.sh [MODEL_PATH]
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$REPO_ROOT" || exit 1
 DATA_ROOT="${DATA_ROOT:-playground/data/eval}"
@@ -9,13 +11,11 @@ SPLIT="mmbench_dev_20230712"
 MODEL_PATH=${1:-"Qwen/Qwen2-VL-2B-Instruct"}
 RETAINED_TOKENS=${2:-10}
 PRUNING_LOC=${3:-"0 9 19"}
-ATTN_BACKEND=${4:-${ATTN_BACKEND:-sdpa}}  # sdpa / fa / eager（eager 与论文结果一致）
+ATTN_BACKEND=${4:-${ATTN_BACKEND:-sdpa}}
 
-# 数据路径
 QUESTION_FILE="${DATA_ROOT}/mmbench/$SPLIT.tsv"
 ANNOTATION_DIR="${DATA_ROOT}/pope/coco"
 
-# 输出文件
 ANSWERS_FILE="${DATA_ROOT}/mmbench/answers/$SPLIT/qwen2vl-2b.jsonl"
 
 python qwen2_vl/eval/model_vqa_mmb.py \

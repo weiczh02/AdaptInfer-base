@@ -8,7 +8,7 @@ def eval_pope(answers, label_file):
     for answer in answers:
         text = answer['text']
 
-        # Only keep the first sentence
+
         if text.find('.') != -1:
             text = text.split('.')[0]
 
@@ -82,5 +82,5 @@ if __name__ == "__main__":
         f1 = eval_pope(cur_answers, os.path.join(args.annotation_dir, file))
         sum += f1
         print("====================================")
-    
+
     print(sum / 3)

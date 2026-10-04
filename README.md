@@ -17,7 +17,7 @@
 
 ## Installation
 
-### LLaVA
+### LLaVA-1.5-7B
 
 ```bash
 conda env create -f environment.yml
@@ -25,16 +25,25 @@ conda activate AdaptInfer
 pip install flash-attn==2.3.3 --no-build-isolation
 ```
 
-### Qwen2-VL
-
-```bash
-conda activate qwen
-pip install -r qwen2_vl/requirements.txt
-```
-
 ## Usage
 
-See [Qwen2-VL setup and evaluation](qwen2_vl/README.md). API keys must come from `OPENAI_API_KEY`; revoke any key previously hard-coded in source.
+Run the following examples from the repository root.
+
+### LLaVA-1.5-7B
+
+Prepare the image benchmarks using the [evaluation data guide](docs/Evaluation.md) and place them under `playground/data/eval/`. For MME, include `MME/MME_Benchmark_release_version/`.
+
+```bash
+conda activate AdaptInfer
+python -m llava.eval.model_vqa_loader \
+    --model-path liuhaotian/llava-v1.5-7b \
+    --question-file playground/data/eval/MME/llava_mme.jsonl \
+    --image-folder playground/data/eval/MME/MME_Benchmark_release_version \
+    --answers-file playground/data/eval/MME/answers/llava-v1.5-7b.jsonl \
+    --conv-mode vicuna_v1 --temperature 0
+```
+
+For Qwen2-VL-2B installation and usage, see [qwen2_vl/README.md](qwen2_vl/README.md).
 
 ## License
 

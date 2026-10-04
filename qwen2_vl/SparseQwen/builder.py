@@ -31,7 +31,7 @@ from transformers import (
     AutoModelForVision2Seq,
 )
 from transformers.cache_utils import Cache, DynamicCache
-from transformers.modeling_outputs import BaseModelOutputWithPast#, Qwen2VLModelOutputWithPast
+from transformers.modeling_outputs import BaseModelOutputWithPast
 from transformers.models.qwen2_vl.modeling_qwen2_vl import (
     Qwen2VLTextModel,
     Qwen2VLModel,
@@ -61,8 +61,6 @@ from attn_backend import (
 logger = logging.get_logger(__name__)
 
 
-
-
 def  batch_index_select(x, idx):
 
     if len(x.size()) == 4:
@@ -73,7 +71,7 @@ def  batch_index_select(x, idx):
         out = x.reshape(B*N, H, C)[idx.reshape(-1)].reshape(B, H, N_new, C)
         return out
     elif len(x.size()) == 3:
-        # in this condition
+
         B, N, C = x.size()
         N_new = idx.size(1)
         offset = torch.arange(B, dtype=torch.long, device=x.device).view(B, 1) * N
@@ -89,19 +87,14 @@ def  batch_index_select(x, idx):
         return out
     else:
         raise NotImplementedError
-        
-# =========================
-# 1. 文本侧：带剪枝的 TextModel
-# =========================
+
 
 class Qwen2VLTextModelWithPruning(Qwen2VLTextModel):
-    """
-    在原 Qwen2VLTextModel 基础上，复写 forward，在层间插入 token 剪枝逻辑。
-    """
+    """Qwen2-VL text decoder with visual token pruning."""
 
     def __init__(self, config,pruning_loc=[],retained_tokens=10):
         super().__init__(config)
-        # 如果你需要额外的配置（比如 pruning_loc、保留比例等），可以在这里挂到 self 上：
+
         self.pruning_loc = pruning_loc
         self.retained_tokens = retained_tokens
         self.num_forward = 0
@@ -123,12 +116,9 @@ class Qwen2VLTextModelWithPruning(Qwen2VLTextModel):
         v_token_start=None,
         **kwargs: Unpack[FlashAttentionKwargs],
     ) -> Union[Tuple, BaseModelOutputWithPast]:
-        """
-        结构基本和原始 Qwen2VLTextModel.forward 保持一致，
-        差别只是我们会在 decoder 层循环之间插入剪枝逻辑。
-        """
+        """Decode text and prune visual tokens during prefill."""
 
-        # ===== 0. 处理默认参数（尽量照抄原 forward） =====
+
         output_attentions = (
             output_attentions if output_attentions is not None else self.config.output_attentions
         )
@@ -148,15 +138,15 @@ class Qwen2VLTextModelWithPruning(Qwen2VLTextModel):
                 )
                 use_cache = False
 
-        # torch.jit.trace() doesn't support cache objects in the output
+
         if use_cache and past_key_values is None and not torch.jit.is_tracing():
             past_key_values = DynamicCache(config=self.config)
 
-        # ===== 1. embedding =====
+
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
 
-        # ===== 2. 位置 / mask 构造（直接沿用原版逻辑的结构） =====
+
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
             cache_position = torch.arange(
@@ -165,7 +155,7 @@ class Qwen2VLTextModelWithPruning(Qwen2VLTextModel):
                 device=inputs_embeds.device,
             )
 
-        # 3D / 4D 的 position_ids 逻辑保持不变（只是结构示意）
+
         if position_ids is None:
             position_ids = cache_position.view(1, 1, -1).expand(3, inputs_embeds.shape[0], -1)
         elif position_ids.ndim == 2:
@@ -177,7 +167,7 @@ class Qwen2VLTextModelWithPruning(Qwen2VLTextModel):
         else:
             text_position_ids = None
 
-        # attention_mask -> causal_mask_mapping（full / sliding）
+
         if not isinstance(causal_mask_mapping := attention_mask, dict):
             mask_kwargs = {
                 "config": self.config,
@@ -193,22 +183,21 @@ class Qwen2VLTextModelWithPruning(Qwen2VLTextModel):
             if self.has_sliding_layers:
                 causal_mask_mapping["sliding_attention"] = create_sliding_window_causal_mask(**mask_kwargs)
 
-        # ===== 3. 共享的 RoPE 位置嵌入 =====
+
         hidden_states = inputs_embeds
         position_embeddings = self.rotary_emb(hidden_states, position_ids)
 
         B, L, _ = hidden_states.shape
         idx_sprase_layer = 0
-        #v_token_start = pre_prompt_length_list[0] if len(pre_prompt_length_list) != 0 else 0
-        #vision_token_nums = 
-        t_token_start = v_token_start + v_token_num ## TODO qwen的vision token nums是变化的，需要找到一个算法计算
-        num_token = []
-        #print(v_token_start,v_token_num,t_token_start)
 
-        # ===== 4. 逐层 decoder + 这里插入你的剪枝逻辑 =====
+
+        t_token_start = v_token_start + v_token_num
+        num_token = []
+
+
         all_hidden_states = () if output_hidden_states else None
         all_self_attns = () if output_attentions else None
-        #print("Layer Nums:", len(self.layers))
+
         num_layers = len(self.layers)
         for layer_idx, decoder_layer in enumerate(self.layers):
             if output_hidden_states:
@@ -216,7 +205,8 @@ class Qwen2VLTextModelWithPruning(Qwen2VLTextModel):
 
             if layer_idx in self.pruning_loc and hidden_states.shape[1] !=1:
                 layer_mask = causal_mask_mapping[decoder_layer.attention_type]
-                # 剪枝层打分注意力单独按 eager 公式计算，与主干注意力后端无关
+
+                # Pruning attention weights are computed independently of the decoding backend.
                 self_attn = eager_attn_weights(decoder_layer, hidden_states, position_embeddings, layer_mask)
                 layer_outputs = decoder_layer(
                     hidden_states=hidden_states,
@@ -230,68 +220,61 @@ class Qwen2VLTextModelWithPruning(Qwen2VLTextModel):
                     **kwargs,
                     )
                 layer_outputs = (layer_outputs[0], self_attn)
-                
-            # 4.2 TODO: 在这里写你的 token importance 计算
-                pred_score_vis = attn_postprocess_topk_with_t2t_weighting(self_attn, v_token_start[0], v_token_num[0], t_token_start[0], layer_idx, self.retained_tokens) # B, L_v
+
+
+                pred_score_vis = attn_postprocess_topk_with_t2t_weighting(self_attn, v_token_start[0], v_token_num[0], t_token_start[0], layer_idx, self.retained_tokens)
                 policy = torch.ones(B, hidden_states.shape[1], dtype=torch.bool, device=hidden_states.device)
-                #print("v,t",v_token_start[0],t_token_start[0])
+
                 policy[:, v_token_start[0]:t_token_start[0]] = pred_score_vis.bool()
 
                 for batch in range(len(v_token_start)):
-                    # keep pre prompt     
-                    prompt_length = v_token_start[batch] -1 
+
+                    prompt_length = v_token_start[batch] -1
                     policy[batch,:prompt_length,] = 1
-                    # keep question
+
                     t_token = t_token_start[batch]
                     policy[batch, t_token:,] = 1
-                        
-                #total_sparse_token_idx = torch.where(policy == 0)[1].unsqueeze(0) #(B, sparse)
-                select_token_idx = torch.where(policy == 1)[1].unsqueeze(0)  # B, L_new
-                #print(select_token_idx.shape)
-                #print(position_ids.shape)
-                
-                # 剪枝 hidden_states
-                layer_outputs = (batch_index_select(layer_outputs[0], select_token_idx), layer_outputs[1])  # B, L, C
-                
-                # 剪枝 position_ids
-                position_ids = position_ids[:, :, select_token_idx[0]]  # [3, B, L_new]
-                
-                # 同步更新 text_position_ids（如果存在）
+
+
+                select_token_idx = torch.where(policy == 1)[1].unsqueeze(0)
+
+
+                layer_outputs = (batch_index_select(layer_outputs[0], select_token_idx), layer_outputs[1])
+
+
+                # Preserve each retained token's original multimodal position.
+                position_ids = position_ids[:, :, select_token_idx[0]]
+
+
                 if text_position_ids is not None:
-                    #print("text_position_ids",text_position_ids.shape)
-                    text_position_ids = text_position_ids[:, select_token_idx[0]]  # [B, L_new]
-                
-                # 剪枝 position_embeddings (cos, sin)
-                # position_embeddings 是一个元组 (cos, sin)，每个的形状是 [B, seq_len, ...]
+
+                    text_position_ids = text_position_ids[:, select_token_idx[0]]
+
+
                 if position_embeddings is not None:
-                    
+
                     cos_emb, sin_emb = position_embeddings
-                    #print("cos_emb",cos_emb.shape)
-                    #print("sin_emb",sin_emb.shape)
-                    # 对 cos 和 sin 进行剪枝，保留 select_token_idx 对应的位置
-                    cos_emb = cos_emb[:, :, select_token_idx[0], :]  # [B, L_new, dim]
-                    sin_emb = sin_emb[:, :, select_token_idx[0], :]  # [B, L_new, dim]
+
+
+                    cos_emb = cos_emb[:, :, select_token_idx[0], :]
+                    sin_emb = sin_emb[:, :, select_token_idx[0], :]
                     position_embeddings = (cos_emb, sin_emb)
-                
-                # 剪枝 attention_mask (causal_mask_mapping)
-                # 注意：attention_mask 是 4D tensor [B, 1, seq_len, seq_len]
-                # 剪枝后需要同时剪枝行和列维度
+
+
                 for mask_type in causal_mask_mapping:
                     causal_mask_mapping[mask_type] = prune_attention_mask(
                         causal_mask_mapping[mask_type], select_token_idx[0]
                     )
-                
-                #prev_decision = policy
-                        
-                        # update
-                v_token_num = pred_score_vis.sum(dim=1) # B == 1
-                        # print(layer_idx, v_token_num)
+
+
+                v_token_num = pred_score_vis.sum(dim=1)
+
                 t_token_start = v_token_start + v_token_num
-                #print(t_token_start,v_token_start,v_token_num)
+
                 num_token.append(v_token_num[0])
-                idx_sprase_layer = idx_sprase_layer + 1 
-            
-            elif hidden_states.shape[1] !=1:   # 4.1 normal prefill layer
+                idx_sprase_layer = idx_sprase_layer + 1
+
+            elif hidden_states.shape[1] !=1:
                 layer_outputs = decoder_layer(
                     hidden_states=hidden_states,
                     attention_mask=causal_mask_mapping[decoder_layer.attention_type],
@@ -304,8 +287,8 @@ class Qwen2VLTextModelWithPruning(Qwen2VLTextModel):
                     **kwargs,
                     )
                 num_token.append(v_token_num[0])
-                
-            else: #decode layers
+
+            else:
                 layer_outputs = decoder_layer(
                     hidden_states=hidden_states,
                     attention_mask=causal_mask_mapping[decoder_layer.attention_type],
@@ -325,13 +308,13 @@ class Qwen2VLTextModelWithPruning(Qwen2VLTextModel):
                 all_self_attns += (self_attn,)
 
 
-        if hidden_states.shape[1] !=1: #prefill结束
+        if hidden_states.shape[1] !=1:
             self.num_forward += 1
             self.num_token_pool += (sum(num_token) / num_layers)
             print(f"equal token num until now: {self.num_token_pool / self.num_forward}")
             num_token = []
-        # ===== 5. 最后 layernorm + 收尾 =====
-         
+
+
         hidden_states = self.norm(hidden_states)
 
         if output_hidden_states:
@@ -350,23 +333,15 @@ class Qwen2VLTextModelWithPruning(Qwen2VLTextModel):
             hidden_states=None,
             attentions=all_self_attns,
         )
-        
 
-# =========================
-# 2. 多模态 backbone：用新的 TextModel 替换
-# =========================
 
 class Qwen2VLModelWithPruning(Qwen2VLModel):
-    """
-    和原 Qwen2VLModel 结构完全一样，只是 language_model 换成 Qwen2VLTextModelWithPruning。
-    """
+    """Qwen2-VL backbone with an AdaptInfer text decoder."""
 
     def __init__(self, config: Qwen2VLConfig):
-        super().__init__(config)  # 注意：跳过父类里对 language_model 的默认构造
-        # 视觉侧保持不变
-        #self.visual = Qwen2VisionTransformerPretrainedModel._from_config(config.vision_config)
+        super().__init__(config)
 
-        # 文本侧改成我们自己的 TextModelWithPruning
+
         self.language_model = Qwen2VLTextModelWithPruning._from_config(config.text_config)
 
         self.rope_deltas = None
@@ -391,14 +366,7 @@ class Qwen2VLModelWithPruning(Qwen2VLModel):
         cache_position: Optional[torch.LongTensor] = None,
         **kwargs,
     ) -> Union[tuple, Qwen2VLModelOutputWithPast]:
-        r"""
-        image_grid_thw (`torch.LongTensor` of shape `(num_images, 3)`, *optional*):
-            The temporal, height and width of feature shape of each image in LLM.
-        video_grid_thw (`torch.LongTensor` of shape `(num_videos, 3)`, *optional*):
-            The temporal, height and width of feature shape of each video in LLM.
-        rope_deltas (`torch.LongTensor` of shape `(batch_size, )`, *optional*):
-            The rope index difference between sequence length and multimodal rope.
-        """
+        """Encode image or video inputs and pass visual-token positions to the text decoder."""
 
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
@@ -431,7 +399,7 @@ class Qwen2VLModelWithPruning(Qwen2VLModel):
                     input_ids, image_grid_thw, video_grid_thw, attention_mask
                 )
                 self.rope_deltas = rope_deltas
-            # then use the prev pre-calculated rope-deltas to get the correct position ids
+
             else:
                 batch_size, seq_length, _ = inputs_embeds.shape
                 position_ids = torch.arange(seq_length, device=inputs_embeds.device)
@@ -448,23 +416,23 @@ class Qwen2VLModelWithPruning(Qwen2VLModel):
         vision_token_num = None
 
         if input_ids is not None:
-            # 1) 标出所有视觉 token（图像 + 视频）
+
+            # Pruning treats visual tokens as one contiguous block.
             vision_token_mask = (input_ids == self.config.image_token_id) | \
-                        (input_ids == self.config.video_token_id)     # [B, L]
+                        (input_ids == self.config.video_token_id)
 
             if attention_mask is not None:
                 vision_token_mask = vision_token_mask & attention_mask.bool()
 
-            # 2) 每条样本的 vision token 总数
-            vision_token_num = vision_token_mask.sum(dim=-1)  # [B]
 
-            # 3) 假设它们在中间是一段连续 block（你的模板就是这样的）
-            # 对于没有视觉 token 的样本要特别处理
+            vision_token_num = vision_token_mask.sum(dim=-1)
+
+
             bsz, seqlen = vision_token_mask.shape
             vision_token_start = torch.full((bsz,), -1, device=input_ids.device)
             any_vision = vision_token_mask.any(dim=-1)
             if any_vision.any():
-                first_pos = vision_token_mask.float().argmax(dim=-1)  # 第一个 True 的位置
+                first_pos = vision_token_mask.float().argmax(dim=-1)
                 vision_token_start[any_vision] = first_pos[any_vision]
 
         outputs = self.language_model(
@@ -474,8 +442,8 @@ class Qwen2VLModelWithPruning(Qwen2VLModel):
             past_key_values=past_key_values,
             inputs_embeds=inputs_embeds,
             use_cache=use_cache,
-            output_attentions=output_attentions,    #显式阻断11.19
-            output_hidden_states=False, #显式阻断
+            output_attentions=output_attentions,
+            output_hidden_states=False,
             return_dict=True,
             cache_position=cache_position,
             v_token_num = vision_token_num,
@@ -492,38 +460,19 @@ class Qwen2VLModelWithPruning(Qwen2VLModel):
         )
         return output if return_dict else output.to_tuple()
 
-# =========================
-# 3. 顶层 CausalLM：套上即可
-# =========================
 
 class Qwen2VLForConditionalGenerationWithPruning(Qwen2VLForConditionalGeneration):
-    """
-    最外层 CausalLM，内部用 Qwen2VLModelWithPruning 作为 backbone。
-    """
+    """Qwen2-VL conditional generation with AdaptInfer pruning."""
 
     def __init__(self, config: Qwen2VLConfig):
         super().__init__(config)
 
-        # 用我们带剪枝的 VL backbone 替换原来的
+
         self.model = Qwen2VLModelWithPruning(config)
 
         self.post_init()
-    '''
-    def set_pruning_params(self, pruning_loc=[1, 10], retained_tokens=10):
-        """
-        设置剪枝参数
-        Args:
-            pruning_loc: 在哪些层进行剪枝，例如 [1, 10] 表示在第1层和第10层剪枝
-            retained_tokens: 保留的token数量
-        """
-        self.model.language_model.pruning_loc = pruning_loc
-        self.model.language_model.retained_tokens = retained_tokens
-        print(f"✓ 设置剪枝参数: pruning_loc={pruning_loc}, retained_tokens={retained_tokens}")
-    '''
 
-# =========================
-# 4. 一个简单的 builder 函数
-# =========================
+
 from transformers import AutoProcessor
 import argparse
 
@@ -534,87 +483,42 @@ def build(
     attn_backend: str = DEFAULT_ATTN_BACKEND,
     **kwargs,
 ) -> Qwen2VLForConditionalGenerationWithPruning:
-    """
-    用预训练权重初始化一个带剪枝的 Qwen2.5-VL 模型。
-
-    attn_backend: 主干注意力后端 "sdpa"（默认）/ "fa" / "eager"。
-        剪枝层打分注意力始终按 eager 公式单独计算；选 "eager" 时与 baseline_eager/ 结果逐位一致。
-
-    用法示例：
-        model = build_qwen2_5vl_with_pruning("Qwen/Qwen2.5-VL-3B-Instruct")
-    """
+    """Load a Qwen2-VL checkpoint and return the model and processor."""
     attn_backend = resolve_attn_backend(attn_backend)
     print(f"✓ 注意力后端: {attn_backend}")
     start_time = time.time()
-    '''
-    base_model: Qwen2VLForConditionalGeneration = AutoModelForVision2Seq.from_pretrained(
-        pretrained_model_name_or_path,
-        torch_dtype=torch_dtype,
-        device_map="cpu",  # 先加载到CPU，避免占用双倍显存
-        attn_implementation="eager",  # 禁用 Flash Attention 以获取 attention 权重
-        **kwargs,
-    )
-    print(f"✓ 加载base model完成 - 用时: {time.time() - start_time:.2f}秒")
-    
-    start_time = time.time()
-    config: Qwen2VLConfig = base_model.config
 
-    # 构造新的剪枝版模型骨架
-    pruned_model = Qwen2VLForConditionalGenerationWithPruning(config)
-    print(f"✓ 构造pruned model完成 - 用时: {time.time() - start_time:.2f}秒")
-    
-    # 把原模型的权重 load 到新结构中
-    # （如果你保证名字完全兼容，可以直接用 state_dict 拷贝）
-    start_time = time.time()
-    pruned_model.load_state_dict(base_model.state_dict(), strict=False)
-    
-    # 释放 base_model 内存
-    del base_model
-    import gc
-    gc.collect()
-    
-    # 将 pruned_model 移动到指定设备
-    if device_map == "cuda":
-        pruned_model = pruned_model.cuda()
-    elif device_map != "cpu":
-        # 处理其他 device_map 如 "auto" 等
-        pruned_model = pruned_model.to(device_map)
-    
-    print(f"✓ 加载state dict并移至{device_map}完成 - 用时: {time.time() - start_time:.2f}秒")
-    '''
     start_time = time.time()
     pruned_model = Qwen2VLForConditionalGenerationWithPruning.from_pretrained(
         pretrained_model_name_or_path,
         torch_dtype=torch_dtype,
-        device_map=device_map,         # "cuda" / "cpu" / "auto" 都行
+        device_map=device_map,
         attn_implementation=attn_backend,
-        # low_cpu_mem_usage=True,      # 可选，减少 CPU 内存峰值
+
         **kwargs,
     )
 
     print(f"✓ 直接加载pruned model完成 - 用时: {time.time() - start_time:.2f}秒")
     start_time = time.time()
-    processor = AutoProcessor.from_pretrained(pretrained_model_name_or_path, 
+    processor = AutoProcessor.from_pretrained(pretrained_model_name_or_path,
                 min_pixels = 256 * 28 * 28,
                 max_pixels = 1280 * 28 * 28,
                 trust_remote_code=True)
     print(f"✓ 加载processor完成 - 用时: {time.time() - start_time:.2f}秒")
-    
+
     return pruned_model, processor
 
 if __name__ == '__main__':
     print(f"\n{'='*80}")
     print("开始模型构建和推理测试")
     print(f"{'='*80}\n")
-    
+
     total_start = time.time()
     model, processor = build("Qwen/Qwen2-VL-2B-Instruct", torch.bfloat16, "cuda")
-    
-    # 设置剪枝参数
-    #model.set_pruning_params(pruning_loc=[1, 10], retained_tokens=10)
-    
+
+
     print(f"\n✓ 总构建时间: {time.time() - total_start:.2f}秒\n")
-    
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--image",
@@ -642,30 +546,28 @@ if __name__ == '__main__':
             return_tensors="pt",
         ).to(model.device)
 
-    #print(inputs)
-    # 将所有inputs移动到模型所在的设备
-    #nputs = {k: v.to(model.device) if isinstance(v, torch.Tensor) else v for k, v in inputs.items()}
+
     print(f"✓ 输入处理完成 - 用时: {time.time() - start_time:.2f}秒")
-    
+
     start_time = time.time()
     generated_ids = model.generate(
             **inputs,
             max_new_tokens=64,
-            do_sample=False,  # 贪婪解码
+            do_sample=False,
             use_cache=True,
         )
-    #print(generated_ids)
+
     print(f"✓ 生成完成 - 用时: {time.time() - start_time:.2f}秒")
-        
-        # 解码输出
+
+
     start_time = time.time()
     output = processor.batch_decode(
-            [generated_ids[0][len(inputs.input_ids[0]):]], 
+            [generated_ids[0][len(inputs.input_ids[0]):]],
             skip_special_tokens=True,
             clean_up_tokenization_spaces=False,
         )[0]
     print(f"✓ 解码完成 - 用时: {time.time() - start_time:.2f}秒")
-        
+
     print(f"\n{'='*80}")
     print("生成结果:")
     print(f"{'='*80}")
