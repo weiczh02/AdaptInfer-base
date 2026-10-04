@@ -1,0 +1,16 @@
+# AdaptInfer environment for Linux x86_64 / CUDA 12.1.
+# Run from the repository root:
+#   conda env create -f environment.yml
+#   conda activate AdaptInfer
+#   pip install flash-attn==2.3.3 --no-build-isolation
+name: AdaptInfer
+channels:
+  - defaults
+dependencies:
+  - python=3.10
+  - pip=25.1
+  - setuptools=69.5.1
+  - wheel=0.43.0
+  - pip:
+      - --extra-index-url https://download.pytorch.org/whl/cu121
+      - -r requirements.txt

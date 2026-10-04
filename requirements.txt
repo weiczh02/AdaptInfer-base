@@ -1,0 +1,68 @@
+# ======================================================================
+# AdaptInfer – curated top-level pip dependencies
+# ----------------------------------------------------------------------
+# Target platform: Linux x86_64, NVIDIA GPU, CUDA 12.1, Python 3.10
+#
+# One-click install (after `conda activate AdaptInfer`):
+#     pip install --extra-index-url https://download.pytorch.org/whl/cu121 -r requirements.txt
+#     pip install flash-attn==2.3.3 --no-build-isolation
+#
+# Transitive dependencies are resolved by pip. This is not a full lock file.
+# ======================================================================
+
+# ---------- Deep-learning core (CUDA 12.1 wheels) ----------
+torch==2.1.2
+torchvision==0.16.2
+# triton is pulled in automatically by torch 2.1.2, but pin it to be safe
+triton==2.1.0
+
+# ---------- Hugging Face stack ----------
+transformers==4.37.0
+tokenizers==0.15.1
+accelerate==0.21.0
+peft==0.7.1
+huggingface-hub==0.33.0
+safetensors==0.5.3
+sentencepiece==0.1.99
+
+# ---------- Model / training utilities ----------
+bitsandbytes==0.45.5
+timm==0.6.13
+einops==0.6.1
+einops-exts==0.0.4
+ninja==1.11.1.4
+
+# The llava implementation is included in this repository.
+
+# ---------- Scientific stack ----------
+numpy==1.26.4
+scipy==1.15.3
+scikit-learn==1.2.2
+pandas==2.3.0
+matplotlib==3.10.3
+ruptures==1.1.10
+openpyxl==3.1.5
+
+# ---------- Web demo / UI ----------
+gradio==4.16.0
+gradio_client==0.8.1
+markdown2==2.5.3
+latex2mathml==3.78.0
+wavedrom==2.0.3.post3
+svgwrite==1.4.3
+shortuuid==1.0.13
+
+# ---------- Misc ----------
+protobuf==6.31.1
+psutil==7.0.0
+
+# ----------------------------------------------------------------------
+# NOTE: flash-attn 2.3.3 MUST be installed in a *separate* step, AFTER
+# torch is already installed, with --no-build-isolation. See README.md.
+# ----------------------------------------------------------------------
+
+# ---------- Shared runtime dependencies ----------
+packaging>=20.0
+pillow>=9.0,<11
+requests>=2.28
+tqdm>=4.64
