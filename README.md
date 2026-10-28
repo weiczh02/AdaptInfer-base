@@ -32,7 +32,7 @@ pip install flash-attn==2.3.3 --no-build-isolation
 
 Run the following examples from the repository root.
 
-### LLaVA-1.5
+### LLaVA
 
 Prepare the image benchmarks using the [evaluation data guide](docs/Evaluation.md) and place them under `playground/data/eval/`. For instance, to evaluate AdaptInfer on MME, please include `MME/MME_Benchmark_release_version/`.
 
@@ -41,7 +41,7 @@ conda activate AdaptInfer
 bash scripts/v1_5/eval/mme.sh liuhaotian/llava-v1.5-7b
 ```
 
-For Qwen2-VL-2B installation and usage, see [qwen2_vl/README.md](qwen2_vl/README.md).
+For Qwen2-VL installation and usage, see [qwen2_vl/README.md](qwen2_vl/README.md).
 
 ## License
 
@@ -50,14 +50,17 @@ This project is released under the [Apache 2.0 license](LICENSE).
 ## Citation
 
 ```bibtex
-@misc{zhang2026adaptinfer,
-      title={AdaptInfer: Adaptive Token Pruning for Vision-Language Model Inference with Dynamical Text Guidance},
-      author={Weichen Zhang and Zhui Zhu and Ningbo Li and Shilong Tao and Kebin Liu and Yunhao Liu},
-      year={2026},
-      eprint={2508.06084},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV},
-      url={https://arxiv.org/abs/2508.06084},
+@inproceedings{zhang-etal-2026-adaptinfer,
+    title = "{A}dapt{I}nfer: Adaptive Token Pruning for Vision Language Model Inference via Dynamical Text Guidance",
+    author = "Zhang, Weichen and Zhu, Zhui and Li, Ningbo and Tao, Shilong and Zhu, Hongzi and Xu, Jingao and Liu, Kebin and Liu, Yunhao",
+    booktitle = "Findings of the {A}ssociation for {C}omputational {L}inguistics: {EMNLP} 2026",
+    month = oct,
+    year = "2026",
+    address = "Budapest, Hungary",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2026.findings-emnlp.945/",
+    pages = "19920--19938",
+    ISBN = "979-8-89176-462-0",
 }
 ```
 
